@@ -2,137 +2,107 @@
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title>Cray Baby 3D World - Riad Absi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cray Baby 3D World</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial', sans-serif; }
-        #game-ui {
-            position: absolute; top: 20px; width: 100%; text-align: center;
-            color: #bf94ff; z-index: 10; pointer-events: none;
-            text-shadow: 2px 2px 5px #000;
-        }
-        .controls {
-            position: absolute; bottom: 40px; width: 100%;
-            display: flex; justify-content: center; gap: 25px; z-index: 10;
-        }
-        button {
-            padding: 20px 45px; font-size: 22px; cursor: pointer;
-            background: linear-gradient(145deg, #5a2d82, #331a4d);
-            color: white; border: 2px solid #bf94ff; border-radius: 20px;
-            box-shadow: 0 6px #222; transition: 0.1s;
-        }
-        button:active { transform: translateY(4px); box-shadow: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        #ui { position: absolute; top: 15px; width: 100%; text-align: center; color: #bf94ff; z-index: 5; }
+        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; gap: 15px; z-index: 5; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #5a2d82; color: white; border: 1px solid #bf94ff; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="game-ui">
-        <h1>مغامرة كراي بيبي 3D</h1>
-        <p>تحرك في الغابة المسحورة</p>
+    <div id="ui">
+        <h2>عالم كراي بيبي 3D</h2>
     </div>
 
     <div class="controls">
-        <button onclick="movePlayer(-0.6)">⬅️ يسار</button>
+        <button onclick="movePlayer(-0.5)">⬅️ يسار</button>
         <button onclick="playerJump()">⬆️ قفز</button>
-        <button onclick="movePlayer(0.6)">يمين ➡️</button>
+        <button onclick="movePlayer(0.5)">يمين ➡️</button>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 
     <script>
-        // --- 1. إعداد المشهد الأساسي ---
+        // إعداد المشهد
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020205); // لون سماء عميق
+        scene.background = new THREE.Color(0x0a0a1a);
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. الإضاءة المحيطية والمركزية ---
-        const ambientLight = new THREE.AmbientLight(0x404040, 1.5); // ضوء عام
-        scene.add(ambientLight);
-        const pointLight = new THREE.PointLight(0xbf94ff, 2, 50); // ضوء أرجواني سحري
-        pointLight.position.set(0, 5, 5);
-        scene.add(pointLight);
+        // الإضاءة لكي تظهر الصور
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040, 2));
 
-        // --- 3. تحميل الأصول (Textures) التي رفعتها يا رياض ---
         const loader = new THREE.TextureLoader();
-        const heroTexture = loader.load('Assets/صورة غير مسماة (21).jpg');
-        const monsterTexture = loader.load('Assets/unnamed (18).jpg');
-        const groundTexture = loader.load('Assets/unnamed (19).jpg');
+        
+        // ربط الصور بملفاتك يا رياض
+        const heroTex = loader.load('Assets/صورة غير مسماة (21).jpg');
+        const monsterTex = loader.load('Assets/unnamed (18).jpg');
+        const groundTex = loader.load('Assets/unnamed (19).jpg');
 
-        // --- 4. إنشاء البطل (مجسم مكعب 3D) ---
-        const playerGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
-        const playerMat = new THREE.MeshStandardMaterial({ map: heroTexture });
-        const player = new THREE.Mesh(playerGeo, playerMat);
-        player.position.y = 0.8;
+        // إنشاء البطل
+        const player = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 1.5, 1.5),
+            new THREE.MeshStandardMaterial({ map: heroTex })
+        );
+        player.position.y = 0.75;
         scene.add(player);
 
-        // --- 5. إنشاء الوحش الخشبي ---
-        const monsterGeo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
-        const monsterMat = new THREE.MeshStandardMaterial({ map: monsterTexture });
-        const enemy = new THREE.Mesh(monsterGeo, monsterMat);
-        enemy.position.set(10, 1.1, 0);
-        scene.add(enemy);
+        // إنشاء الوحش
+        const monster = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 2, 2),
+            new THREE.MeshStandardMaterial({ map: monsterTex })
+        );
+        monster.position.set(7, 1, 0);
+        scene.add(monster);
 
-        // --- 6. الأرضية (الغابة) ---
-        const groundGeo = new THREE.PlaneGeometry(100, 20);
-        const groundMat = new THREE.MeshStandardMaterial({ map: groundTexture, side: THREE.DoubleSide });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
+        // الأرضية
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(50, 20),
+            new THREE.MeshStandardMaterial({ map: groundTex })
+        );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
-        // وضعية الكاميرا
-        camera.position.set(0, 5, 12);
+        camera.position.set(0, 4, 8);
         camera.lookAt(player.position);
 
-        // --- 7. منطق الحركة والجاذبية ---
         let vY = 0;
         let jumping = false;
 
         function animate() {
             requestAnimationFrame(animate);
-
-            // دوران بسيط للمجسمات لتعزيز شكل الـ 3D
-            player.rotation.y += 0.005;
-            enemy.rotation.y -= 0.005;
-
-            // حركة الوحش نحو البطل
-            if (enemy.position.x > player.position.x + 2.5) {
-                enemy.position.x -= 0.04;
-            }
+            
+            // حركة بسيطة للوحش
+            if(monster.position.x > player.position.x + 2) monster.position.x -= 0.02;
 
             // نظام الجاذبية
             player.position.y += vY;
-            if (player.position.y > 0.8) {
-                vY -= 0.012;
+            if (player.position.y > 0.75) {
+                vY -= 0.01;
             } else {
-                player.position.y = 0.8;
+                player.position.y = 0.75;
                 vY = 0;
                 jumping = false;
             }
 
-            // الكاميرا تتبع اللاعب بسلاسة
-            camera.position.x = player.position.x;
-            pointLight.position.x = player.position.x;
-
+            camera.position.x = player.position.x; // الكاميرا تتبع البطل
             renderer.render(scene, camera);
         }
 
-        function movePlayer(val) {
-            player.position.x += val;
-        }
-
-        function playerJump() {
-            if (!jumping) {
-                vY = 0.25;
-                jumping = true;
-            }
-        }
+        function movePlayer(val) { player.position.x += val; }
+        function playerJump() { if(!jumping) { vY = 0.15; jumping = true; } }
 
         animate();
 
-        // التكيف مع حجم الشاشة
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
