@@ -1,25 +1,14 @@
-# 🍼 Cray Baby: Forest Rescue - 100 Missions Challenge
+# 🌲 مغامرة الغابة المظلمة (Dark Forest Adventure)
+**مشروع تطوير لعبة كراي بيبي - تحدي الـ 100 مهمة**
 
-Welcome to the official repository of **Cray Baby Forest Rescue**, a mobile game powered by the **$CRAY** token ecosystem.
+## 🎮 قصة اللعبة
+في غابة سحرية غامضة، تعرضت ثلاث دمى شجاعة للمطاردة من قبل وحوش الأغصان. مهمتك يا بطل هي إنقاذ "كراي بيبي" ومساعدتهم على البقاء باستخدام مجموعة متنوعة من الأسلحة وتخطي العقبات للوصول إلى بر الأمان.
 
-## 🕹️ Game Overview
-In a dark, mysterious forest, three brave **Cray Baby dolls** are being hunted by monsters. Your mission is to rescue them using a variety of weapons and survive through 100 levels of increasing difficulty.
-
-## 🚀 Key Features
-* **100 Progressive Missions:** Each level gets harder, faster, and more challenging.
-* **Arsenal of Weapons:** Choose between the **Sword** (Fast), **Hammer** (Heavy), or **Pistol** (Long Range).
-* **Monster AI:** Intelligent enemies that track and hunt the dolls automatically.
-* **Blockchain Integration:** Built to reward players within the **BNB Chain (BEP20)** ecosystem.
-
-## 🛠️ Technical Stack
-* **Engine:** Unity 3D.
-* **Language:** C# (Scripts included in the `/Scripts` folder).
-* **Platform:** Android & iOS.
-
-## 📁 Repository Structure
-* `/Scripts`: Core game logic (AI, Missions, UI, Weapons).
-* `/Assets`: Visual designs and character models.
-* `/Documentation`: Detailed mission breakdown and tokenomics.
+## 🛠️ ما تم إنجازه في المشروع (Technical Progress)
+* **نظام الحركة والفيزياء**: كود `PlayerController.cs` الذي يتيح القفز والمشي.
+* **الذكاء الاصطناعي**: نظام `EnemyAI.cs` الذي يجعل الوحوش تطارد اللاعب.
+* **إدارة القتال**: كود `CombatManager.cs` لربط الأسلحة بنظام الصحة.
+* **الواجهة الرسومية**: أزرار خشبية وشريط حياة متفاعل.
 
 ---
-**Developed by Riad Absi** 🚀
+**تم التطوير بواسطة المبرمج: رياض عبسي (Riad Absi)**
