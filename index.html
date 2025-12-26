@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <title>Cray Baby Adventure</title>
     <style>
-        body { background: #000; color: #fff; text-align: center; font-family: Arial; margin: 0; overflow: hidden; }
-        canvas { background: #1a1a1a; display: block; margin: 20px auto; border: 3px solid #4a266a; background-image: url('background.png'); background-size: cover; }
-        .controls { margin-top: 10px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; background: #5a2d82; color: white; border: none; border-radius: 5px; box-shadow: 0 4px #331a4d; }
-        button:active { background: #331a4d; transform: translateY(4px); box-shadow: none; }
+        body { background: #000; color: #fff; text-align: center; font-family: Arial; margin: 0; }
+        canvas { background: #1a1a1a; display: block; margin: 20px auto; border: 3px solid #4a266a; }
+        .controls { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+        button { padding: 20px 40px; font-size: 20px; cursor: pointer; background: #5a2d82; color: white; border: none; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -25,48 +24,37 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // تحميل صورة البطل
-        const heroImg = new Image();
-        heroImg.src = 'Hero.png'; // تأكد أن هذا هو اسم ملف صورتك
-
         let x = 50, y = 300;
+        const heroImg = new Image();
+        heroImg.src = 'Hero.png'; 
 
-        function draw() {
+        function update() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // رسم البطل (الصورة بدلاً من المربع)
-            if (heroImg.complete) {
+            // رسم الأرضية
+            ctx.fillStyle = "#2d5a27";
+            ctx.fillRect(0, 360, 600, 40);
+
+            // رسم البطل: صورة لو موجودة، مربع لو مش موجودة
+            if (heroImg.complete && heroImg.naturalWidth !== 0) {
                 ctx.drawImage(heroImg, x, y, 60, 60);
             } else {
                 ctx.fillStyle = "#ff4d4d"; 
                 ctx.fillRect(x, y, 50, 50);
             }
-            
-            // رسم أرضية الغابة
-            ctx.fillStyle = "#2d5a27";
-            ctx.fillRect(0, 360, 600, 40);
-            requestAnimationFrame(draw);
+            requestAnimationFrame(update);
         }
 
         function moveRight() { x += 20; }
         function moveLeft() { x -= 20; }
         function jump() { 
-            if (y === 300) { // قفز بسيط
-                let jumpUp = setInterval(() => {
-                    y -= 5;
-                    if (y <= 200) {
-                        clearInterval(jumpUp);
-                        let fallDown = setInterval(() => {
-                            y += 5;
-                            if (y >= 300) clearInterval(fallDown);
-                        }, 10);
-                    }
-                }, 10);
+            if (y === 300) {
+                y -= 100;
+                setTimeout(() => { y = 300; }, 300);
             }
         }
 
-        heroImg.onload = () => { draw(); };
-        draw(); 
+        update();
     </script>
 </body>
 </html>
