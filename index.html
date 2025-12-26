@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cray Baby Adventure</title>
+    <style>
+        canvas { background: #1a1a1a; display: block; margin: 0 auto; border: 5px solid #4a266a; }
+        body { background-color: #000; color: white; text-align: center; font-family: Arial; }
+    </style>
+</head>
+<body>
+    <h1>تحذير: منطقة خطر - وحوش الأغصان!</h1>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <script>
+        // هنا سنقوم بربط صور الأبطال والوحوش التي رفعتها يا رياض
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // مثال لتحريك البطل (كود مبسط للمتصفح)
+        let playerX = 50;
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "purple"; // لون مؤقت بانتظار تحميل الصور
+            ctx.fillRect(playerX, 300, 50, 50);
+            playerX += 1;
+            requestAnimationFrame(update);
+        }
+        update();
+    </script>
+</body>
+</html>
