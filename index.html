@@ -5,9 +5,10 @@
     <title>Cray Baby Adventure</title>
     <style>
         body { background: #000; color: #fff; text-align: center; font-family: Arial; margin: 0; overflow: hidden; }
-        canvas { background: #1a1a1a; display: block; margin: 20px auto; border: 3px solid #4a266a; }
+        canvas { background: #1a1a1a; display: block; margin: 20px auto; border: 3px solid #4a266a; background-image: url('background.png'); background-size: cover; }
         .controls { margin-top: 10px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; background: #5a2d82; color: white; border: none; border-radius: 5px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; background: #5a2d82; color: white; border: none; border-radius: 5px; box-shadow: 0 4px #331a4d; }
+        button:active { background: #331a4d; transform: translateY(4px); box-shadow: none; }
     </style>
 </head>
 <body>
@@ -24,30 +25,48 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // إحداثيات البطل
-        let x = 50;
-        let y = 300;
+        // تحميل صورة البطل
+        const heroImg = new Image();
+        heroImg.src = 'Hero.png'; // تأكد أن هذا هو اسم ملف صورتك
 
-        function drawPlayer() {
+        let x = 50, y = 300;
+
+        function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // رسم مربع يمثل البطل حالياً (سنربطه بصورتك في الخطوة القادمة)
-            ctx.fillStyle = "#ff4d4d"; 
-            ctx.fillRect(x, y, 50, 50);
             
-            // رسم أرضية بسيطة
+            // رسم البطل (الصورة بدلاً من المربع)
+            if (heroImg.complete) {
+                ctx.drawImage(heroImg, x, y, 60, 60);
+            } else {
+                ctx.fillStyle = "#ff4d4d"; 
+                ctx.fillRect(x, y, 50, 50);
+            }
+            
+            // رسم أرضية الغابة
             ctx.fillStyle = "#2d5a27";
-            ctx.fillRect(0, 350, 600, 50);
+            ctx.fillRect(0, 360, 600, 40);
+            requestAnimationFrame(draw);
         }
 
-        function moveRight() { x += 20; drawPlayer(); }
-        function moveLeft() { x -= 20; drawPlayer(); }
+        function moveRight() { x += 20; }
+        function moveLeft() { x -= 20; }
         function jump() { 
-            y -= 50; 
-            drawPlayer(); 
-            setTimeout(() => { y += 50; drawPlayer(); }, 300); 
+            if (y === 300) { // قفز بسيط
+                let jumpUp = setInterval(() => {
+                    y -= 5;
+                    if (y <= 200) {
+                        clearInterval(jumpUp);
+                        let fallDown = setInterval(() => {
+                            y += 5;
+                            if (y >= 300) clearInterval(fallDown);
+                        }, 10);
+                    }
+                }, 10);
+            }
         }
 
-        drawPlayer(); // التشغيل الأول
+        heroImg.onload = () => { draw(); };
+        draw(); 
     </script>
 </body>
 </html>
