@@ -7,7 +7,8 @@
         body { background: #000; color: #fff; text-align: center; font-family: Arial; margin: 0; }
         canvas { background: #1a1a1a; display: block; margin: 20px auto; border: 3px solid #4a266a; }
         .controls { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
-        button { padding: 20px 40px; font-size: 20px; cursor: pointer; background: #5a2d82; color: white; border: none; border-radius: 10px; }
+        button { padding: 20px 40px; font-size: 20px; cursor: pointer; background: #5a2d82; color: white; border: none; border-radius: 10px; box-shadow: 0 4px #000; }
+        button:active { transform: translateY(2px); box-shadow: none; }
     </style>
 </head>
 <body>
@@ -26,7 +27,9 @@
 
         let x = 50, y = 300;
         const heroImg = new Image();
-        heroImg.src = 'Hero.png'; 
+        
+        // هذا هو المسار الذي حددته أنت يا رياض
+        heroImg.src = 'Assets/unnamed (21).jpg'; 
 
         function update() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -35,22 +38,33 @@
             ctx.fillStyle = "#2d5a27";
             ctx.fillRect(0, 360, 600, 40);
 
-            // رسم البطل: صورة لو موجودة، مربع لو مش موجودة
+            // رسم البطل: سيظهر البطل الحقيقي بمجرد تحميل الصورة من المجلد
             if (heroImg.complete && heroImg.naturalWidth !== 0) {
                 ctx.drawImage(heroImg, x, y, 60, 60);
             } else {
+                // مربع طوارئ في حال تأخر تحميل الصورة
                 ctx.fillStyle = "#ff4d4d"; 
                 ctx.fillRect(x, y, 50, 50);
             }
             requestAnimationFrame(update);
         }
 
-        function moveRight() { x += 20; }
-        function moveLeft() { x -= 20; }
+        function moveRight() { x += 20; if(x > 540) x = 540; }
+        function moveLeft() { x -= 20; if(x < 0) x = 0; }
         function jump() { 
             if (y === 300) {
-                y -= 100;
-                setTimeout(() => { y = 300; }, 300);
+                let timer = 0;
+                let interval = setInterval(() => {
+                    y -= 5;
+                    timer++;
+                    if(timer >= 20) {
+                        clearInterval(interval);
+                        let fall = setInterval(() => {
+                            y += 5;
+                            if(y >= 300) clearInterval(fall);
+                        }, 10);
+                    }
+                }, 10);
             }
         }
 
