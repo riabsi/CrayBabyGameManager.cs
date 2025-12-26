@@ -1,30 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar">
 <head>
+    <meta charset="UTF-8">
     <title>Cray Baby Adventure</title>
     <style>
-        canvas { background: #1a1a1a; display: block; margin: 0 auto; border: 5px solid #4a266a; }
-        body { background-color: #000; color: white; text-align: center; font-family: Arial; }
+        body { background: #000; color: #fff; text-align: center; font-family: Arial; margin: 0; overflow: hidden; }
+        canvas { background: #1a1a1a; display: block; margin: 20px auto; border: 3px solid #4a266a; }
+        .controls { margin-top: 10px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; background: #5a2d82; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h1>تحذير: منطقة خطر - وحوش الأغصان!</h1>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <h1>مغامرة كراي بيبي: إنقاذ الغابة</h1>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    
+    <div class="controls">
+        <button onclick="moveLeft()">⬅️ يسار</button>
+        <button onclick="jump()">⬆️ قفز</button>
+        <button onclick="moveRight()">يمين ➡️</button>
+    </div>
+
     <script>
-        // هنا سنقوم بربط صور الأبطال والوحوش التي رفعتها يا رياض
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
-        // مثال لتحريك البطل (كود مبسط للمتصفح)
-        let playerX = 50;
-        function update() {
+
+        // إحداثيات البطل
+        let x = 50;
+        let y = 300;
+
+        function drawPlayer() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "purple"; // لون مؤقت بانتظار تحميل الصور
-            ctx.fillRect(playerX, 300, 50, 50);
-            playerX += 1;
-            requestAnimationFrame(update);
+            // رسم مربع يمثل البطل حالياً (سنربطه بصورتك في الخطوة القادمة)
+            ctx.fillStyle = "#ff4d4d"; 
+            ctx.fillRect(x, y, 50, 50);
+            
+            // رسم أرضية بسيطة
+            ctx.fillStyle = "#2d5a27";
+            ctx.fillRect(0, 350, 600, 50);
         }
-        update();
+
+        function moveRight() { x += 20; drawPlayer(); }
+        function moveLeft() { x -= 20; drawPlayer(); }
+        function jump() { 
+            y -= 50; 
+            drawPlayer(); 
+            setTimeout(() => { y += 50; drawPlayer(); }, 300); 
+        }
+
+        drawPlayer(); // التشغيل الأول
     </script>
 </body>
 </html>
