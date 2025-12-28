@@ -1,134 +1,122 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Cray Baby - Horror World</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
-        .btn { width: 65px; height: 65px; background: rgba(255,0,0,0.3); border: 2px solid #ff0000; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; font-family: Arial; font-weight: bold; }
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
+        .btn { 
+            width: 70px; height: 70px; background: rgba(255, 0, 0, 0.4); 
+            border: 2px solid #ffffff; border-radius: 50%; color: white; 
+            display: flex; align-items: center; justify-content: center; 
+            font-family: Arial, sans-serif; font-weight: bold; cursor: pointer; 
+            user-select: none; -webkit-tap-highlight-color: transparent; 
+        }
     </style>
 </head>
 <body>
 
     <div id="controls">
-        <div class="btn" id="leftBtn">يسار</div>
-        <div class="btn" id="jumpBtn">قفز</div>
-        <div class="btn" id="rightBtn">يمين</div>
+        <div class="btn" id="leftBtn">LEFT</div>
+        <div class="btn" id="jumpBtn">JUMP</div>
+        <div class="btn" id="rightBtn">RIGHT</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
+        // 1. Scene Setup
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020202);
+        scene.background = new THREE.Color(0x050505);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        
-        const redLight = new THREE.PointLight(0xff0000, 2, 50);
-        redLight.position.set(0, 5, 5);
-        scene.add(redLight);
+        // 2. Lighting
+        const mainLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+        scene.add(mainLight);
+        const pointLight = new THREE.PointLight(0xff0000, 2, 50);
+        pointLight.position.set(0, 5, 5);
+        scene.add(pointLight);
 
+        // 3. Ground
         const textureLoader = new THREE.TextureLoader();
-        const groundTex = textureLoader.load('أصول/unnamed (19).jpg');
+        const groundTex = textureLoader.load('Assets/unnamed (19).jpg');
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ map: groundTex || null, color: 0x444444 })
+            new THREE.MeshStandardMaterial({ map: groundTex || null, color: 0x333333 })
         );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
+        // 4. Model Loader Logic
         const loader = new THREE.GLTFLoader();
         let player, zombie, dog, girl;
 
-        function loadModel(fileName, scale, posX, posZ, callback) {
-            const path = 'أصول/' + fileName;
-            loader.load(path, function(gltf) {
+        function loadCharacter(file, scale, x, z, type) {
+            loader.load('Assets/' + file, function(gltf) {
                 const model = gltf.scene;
                 model.scale.set(scale, scale, scale);
-                model.position.set(posX, 0, posZ);
+                model.position.set(x, 0, z);
                 scene.add(model);
-                if (callback) callback(model);
-            }, undefined, function() {
-                loader.load('Assets/' + fileName, function(gltf) {
-                    const model = gltf.scene;
-                    model.scale.set(scale, scale, scale);
-                    model.position.set(posX, 0, posZ);
-                    scene.add(model);
-                    if (callback) callback(model);
-                });
+                
+                if(type === 'player') player = model;
+                if(type === 'zombie') zombie = model;
+                if(type === 'dog') dog = model;
+                if(type === 'girl') girl = model;
+                
+                console.log(type + " loaded successfully");
+            }, undefined, function(error) {
+                console.error("Error loading " + file, error);
             });
         }
 
-        // 1. البطل
-        loadModel('cyber_warrior.glb', 0.05, 0, 0, function(m) { player = m; });
+        // 5. Loading Your Specific Models
+        loadCharacter('cyber_warrior.glb', 0.04, 0, 0, 'player');
+        loadCharacter('zombie.glb', 0.04, -4, -5, 'zombie');
+        loadCharacter('zombie_dog.glb', 0.02, -6, -2, 'dog');
+        loadCharacter('chibi_girl_character.glb', 0.04, 4, -3, 'girl');
 
-        // 2. الزومبي
-        loadModel('zombie.glb', 0.05, 0, -15, function(m) { zombie = m; });
+        camera.position.set(0, 6, 15);
 
-        // 3. كلب الزومبي
-        loadModel('zombie_dog.glb', 0.02, -5, -10, function(m) { dog = m; });
+        // 6. Controls Logic
+        let moveX = 0;
+        document.getElementById('leftBtn').onpointerdown = () => moveX = -0.15;
+        document.getElementById('rightBtn').onpointerdown = () => moveX = 0.15;
+        window.onpointerup = () => moveX = 0;
 
-        // 4. الفتاة اللطيفة (إضافة جديدة بناءً على طلبك)
-        loadModel('chibi_girl_character.glb', 0.04, 5, -5, function(m) { girl = m; });
-
-        camera.position.set(0, 6, 18);
-
-        // تعديل التحكم ليعمل على المتصفحات الحديثة والموبايل بدقة
-        let moveLeft = false, moveRight = false, isJumping = false;
-        let jumpVelocity = 0;
-
-        const setLeft = (val) => moveLeft = val;
-        const setRight = (val) => moveRight = val;
-
-        document.getElementById('leftBtn').onpointerdown = () => setLeft(true);
-        document.getElementById('leftBtn').onpointerup = () => setLeft(false);
-        document.getElementById('rightBtn').onpointerdown = () => setRight(true);
-        document.getElementById('rightBtn').onpointerup = () => setRight(false);
-        
-        document.getElementById('jumpBtn').onclick = () => { 
-            if(!isJumping && player) { 
-                isJumping = true; 
-                jumpVelocity = 0.25; 
-            } 
+        document.getElementById('jumpBtn').onpointerdown = () => {
+            if(player && player.position.y <= 0.1) {
+                let power = 0.25;
+                function jumping() {
+                    player.position.y += power;
+                    power -= 0.015;
+                    if(player.position.y > 0) requestAnimationFrame(jumping);
+                    else player.position.y = 0;
+                }
+                jumping();
+            }
         };
 
+        // 7. Game Loop
         function animate() {
             requestAnimationFrame(animate);
 
             if (player) {
-                if (moveLeft) player.position.x -= 0.15;
-                if (moveRight) player.position.x += 0.15;
-                if (isJumping) {
-                    player.position.y += jumpVelocity;
-                    jumpVelocity -= 0.015;
-                    if (player.position.y <= 0) { player.position.y = 0; isJumping = false; }
-                }
+                player.position.x += moveX;
                 camera.position.x = player.position.x;
-                camera.lookAt(player.position.x, 2, player.position.z);
-                redLight.position.set(player.position.x, 5, player.position.z + 2);
-            }
-
-            if (zombie && player) {
-                zombie.position.z += 0.04;
-                zombie.lookAt(player.position);
-            }
-            if (dog && player) {
-                dog.position.z += 0.06;
-                dog.lookAt(player.position);
+                camera.lookAt(player.position.x, 1, 0);
             }
 
             renderer.render(scene, camera);
         }
         animate();
 
+        // Handle Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
