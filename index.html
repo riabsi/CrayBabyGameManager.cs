@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Girl Adventure - $CRAY</title>
+    <title>Girl Adventure - Fix</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
         .btn { 
-            width: 75px; height: 75px; background: rgba(0, 150, 255, 0.6); 
+            width: 75px; height: 75px; background: rgba(0, 150, 255, 0.7); 
             border: 3px solid #ffffff; border-radius: 50%; color: white; 
             display: flex; align-items: center; justify-content: center; 
             font-family: Arial, sans-serif; font-weight: bold; cursor: pointer; 
@@ -28,9 +28,8 @@
     <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        // 1. إعداد المشهد والكاميرا
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111111);
+        scene.background = new THREE.Color(0x87CEEB); // لون سماء فاتح للتأكد من الرؤية
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -39,68 +38,58 @@
         const clock = new THREE.Clock();
         let mixer, girl;
 
-        // 2. الإضاءة (نور أبيض قوي لرؤية الفتاة بوضوح)
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(5, 10, 5);
-        scene.add(dirLight);
+        // إضاءة قوية جداً من كل الجهات
+        scene.add(new THREE.AmbientLight(0xffffff, 2)); 
+        const light = new THREE.DirectionalLight(0xffffff, 2);
+        light.position.set(0, 10, 10);
+        scene.add(light);
 
-        // 3. الأرضية (باستخدام صورتك الموجودة مسبقاً)
+        // تحميل الأرضية
         const textureLoader = new THREE.TextureLoader();
         textureLoader.load('Assets/unnamed (19).jpg', function(texture) {
-            const ground = new THREE.Mesh(
-                new THREE.PlaneGeometry(200, 200),
-                new THREE.MeshStandardMaterial({ map: texture })
-            );
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ map: texture }));
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
         });
 
-        // 4. استدعاء مجسم الفتاة (من ملفك الموجود في Assets)
+        // تحميل الفتاة مع تعديل الحجم والتموضع
         const loader = new THREE.GLTFLoader();
-        // تأكد أن الاسم مطابق تماماً لما هو موجود في GitHub
         loader.load('Assets/chibi_girl_character.glb', function(gltf) {
             girl = gltf.scene;
-            girl.scale.set(0.1, 0.1, 0.1); // حجم مناسب للفتاة
+            
+            // قمنا بزيادة الحجم لـ 1.0 (بدلاً من 0.1) لضمان ظهورها
+            girl.scale.set(1.0, 1.0, 1.0); 
             girl.position.set(0, 0, 0);
             scene.add(girl);
 
-            // تشغيل حركة المفاصل (إذا كانت الفتاة Animated)
             if (gltf.animations && gltf.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(girl);
-                const action = mixer.clipAction(gltf.animations[0]);
-                action.play();
+                mixer.clipAction(gltf.animations[0]).play();
             }
+        }, undefined, function(error) {
+            console.error("Error loading model:", error);
         });
 
-        camera.position.set(0, 6, 15);
+        // تقريب الكاميرا لكي نرى الفتاة بوضوح
+        camera.position.set(0, 4, 10); 
 
-        // 5. نظام التحكم
         let moveX = 0;
-        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.15; if(girl) girl.rotation.y = -Math.PI / 2; };
-        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.15; if(girl) girl.rotation.y = Math.PI / 2; };
+        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.1; if(girl) girl.rotation.y = -Math.PI / 2; };
+        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.1; if(girl) girl.rotation.y = Math.PI / 2; };
         window.onpointerup = () => moveX = 0;
 
-        // 6. التحريك المستمر
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
             if (mixer) mixer.update(delta);
-
             if (girl) {
                 girl.position.x += moveX;
                 camera.position.x = girl.position.x;
-                camera.lookAt(girl.position.x, 2, 0);
+                camera.lookAt(girl.position.x, 1, 0);
             }
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
