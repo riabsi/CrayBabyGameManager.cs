@@ -2,16 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Girl Adventure</title>
+<title>Girl Adventure - Single File</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: #000;
-    touch-action: none;
-}
+body { margin: 0; overflow: hidden; background: #87CEEB; }
 #controls {
     position: absolute;
     bottom: 30px;
@@ -19,20 +14,17 @@ body {
     transform: translateX(-50%);
     display: flex;
     gap: 20px;
-    z-index: 10;
 }
 .btn {
     width: 80px;
     height: 80px;
-    background: rgba(0,150,255,0.8);
     border-radius: 50%;
-    border: 3px solid #fff;
-    color: white;
+    background: rgba(0,150,255,0.8);
+    color: #fff;
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
-    user-select: none;
 }
 </style>
 </head>
@@ -40,126 +32,94 @@ body {
 <body>
 
 <div id="controls">
-    <div class="btn" id="leftBtn">LEFT</div>
-    <div class="btn" id="rightBtn">RIGHT</div>
+    <div class="btn" id="left">LEFT</div>
+    <div class="btn" id="right">RIGHT</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-let scene, camera, renderer, clock;
-let girl, mixer;
-let idleAction, walkAction;
-let moveX = 0;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 1000);
+camera.position.set(0, 5, 12);
 
-init();
-animate();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
 
-function init() {
+// إضاءة
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
 
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB);
+// أرضية
+const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(200, 200),
+    new THREE.MeshStandardMaterial({ color: 0x228B22 })
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
 
-    camera = new THREE.PerspectiveCamera(
-        70,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000
-    );
-    camera.position.set(0, 5, 12);
+// شخصية بدون ملفات خارجية
+const girl = new THREE.Group();
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+// جسم
+const body = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 2, 0.8),
+    new THREE.MeshStandardMaterial({ color: 0xffc0cb })
+);
+body.position.y = 2;
+girl.add(body);
 
-    clock = new THREE.Clock();
+// رأس
+const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.6, 32, 32),
+    new THREE.MeshStandardMaterial({ color: 0xffe0bd })
+);
+head.position.y = 3.5;
+girl.add(head);
 
-    // إضاءة
-    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight.position.set(5, 10, 5);
-    scene.add(dirLight);
+// أرجل
+const legMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.5, 0.4), legMat);
+const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.5, 0.4), legMat);
 
-    // أرضية
-    const tex = new THREE.TextureLoader().load('Assets/unnamed (19).jpg');
-    const ground = new THREE.Mesh(
-        new THREE.PlaneGeometry(500, 500),
-        new THREE.MeshStandardMaterial({ map: tex })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    scene.add(ground);
+leftLeg.position.set(-0.3, 0.75, 0);
+rightLeg.position.set(0.3, 0.75, 0);
 
-    // تحميل الشخصية
-    const loader = new THREE.GLTFLoader();
-    loader.load('Assets/chibi_girl_character.glb', (gltf) => {
+girl.add(leftLeg);
+girl.add(rightLeg);
+scene.add(girl);
 
-        girl = gltf.scene;
-        girl.scale.set(1.5, 1.5, 1.5);
-        scene.add(girl);
+// حركة المشي
+let move = 0;
+let walkTime = 0;
 
-        mixer = new THREE.AnimationMixer(girl);
-
-        console.log("Animations:", gltf.animations.map(a => a.name));
-
-        gltf.animations.forEach(clip => {
-            const name = clip.name.toLowerCase();
-
-            if (name.includes("idle")) {
-                idleAction = mixer.clipAction(clip);
-            }
-            if (name.includes("walk")) {
-                walkAction = mixer.clipAction(clip);
-            }
-        });
-
-        // تشغيل الوقوف الافتراضي
-        if (idleAction) idleAction.play();
-    });
-}
-
-// التحكم
-document.getElementById('leftBtn').onpointerdown = () => {
-    moveX = -0.08;
-    if (girl) girl.rotation.y = Math.PI / 2;
-    startWalk();
-};
-
-document.getElementById('rightBtn').onpointerdown = () => {
-    moveX = 0.08;
-    if (girl) girl.rotation.y = -Math.PI / 2;
-    startWalk();
-};
-
-window.onpointerup = stopWalk;
-
-function startWalk() {
-    if (!walkAction || !idleAction) return;
-    idleAction.stop();
-    walkAction.play();
-}
-
-function stopWalk() {
-    moveX = 0;
-    if (!walkAction || !idleAction) return;
-    walkAction.stop();
-    idleAction.play();
-}
+document.getElementById("left").onpointerdown = () => move = -0.07;
+document.getElementById("right").onpointerdown = () => move = 0.07;
+window.onpointerup = () => move = 0;
 
 function animate() {
     requestAnimationFrame(animate);
 
-    const delta = clock.getDelta();
-    if (mixer) mixer.update(delta);
-
-    if (girl) {
-        girl.position.x += moveX;
-        camera.position.x = girl.position.x;
-        camera.lookAt(girl.position.x, 2, 0);
+    if (move !== 0) {
+        girl.position.x += move;
+        walkTime += 0.15;
+        leftLeg.rotation.x = Math.sin(walkTime) * 0.6;
+        rightLeg.rotation.x = -Math.sin(walkTime) * 0.6;
+    } else {
+        leftLeg.rotation.x *= 0.8;
+        rightLeg.rotation.x *= 0.8;
     }
+
+    camera.position.x = girl.position.x;
+    camera.lookAt(girl.position.x, 2, 0);
 
     renderer.render(scene, camera);
 }
+
+animate();
 </script>
 
 </body>
