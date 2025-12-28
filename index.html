@@ -1,85 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Professional Girl Adventure</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
-        .btn { width: 75px; height: 75px; background: rgba(0, 150, 255, 0.7); border: 3px solid #fff; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; user-select: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Girl Adventure</title>
+
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+    touch-action: none;
+}
+#controls {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    z-index: 10;
+}
+.btn {
+    width: 80px;
+    height: 80px;
+    background: rgba(0,150,255,0.8);
+    border-radius: 50%;
+    border: 3px solid #fff;
+    color: white;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+</style>
 </head>
+
 <body>
 
-    <div id="controls">
-        <div class="btn" id="leftBtn">LEFT</div>
-        <div class="btn" id="rightBtn">RIGHT</div>
-    </div>
+<div id="controls">
+    <div class="btn" id="leftBtn">LEFT</div>
+    <div class="btn" id="rightBtn">RIGHT</div>
+</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
-    <script>
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+<script>
+let scene, camera, renderer, clock;
+let girl, mixer;
+let idleAction, walkAction;
+let moveX = 0;
 
-        const clock = new THREE.Clock();
-        let mixer, girl, allActions = [];
+init();
+animate();
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-        const light = new THREE.DirectionalLight(0xffffff, 1.5);
-        light.position.set(5, 10, 5);
-        scene.add(light);
+function init() {
 
-        // تحميل الأرضية
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('Assets/unnamed (19).jpg', function(tex) {
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ map: tex }));
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
-        });
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
 
-        // تحميل الفتاة مع تشغيل حركات المفاصل
-        const loader = new THREE.GLTFLoader();
-        loader.load('Assets/chibi_girl_character.glb', function(gltf) {
-            girl = gltf.scene;
-            girl.scale.set(1.5, 1.5, 1.5); 
-            scene.add(girl);
+    camera = new THREE.PerspectiveCamera(
+        70,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+    );
+    camera.position.set(0, 5, 12);
 
-            if (gltf.animations && gltf.animations.length > 0) {
-                mixer = new THREE.AnimationMixer(girl);
-                // تشغيل كل الحركات المسجلة في الملف لإنهاء حالة الزحف
-                gltf.animations.forEach((clip) => {
-                    const action = mixer.clipAction(clip);
-                    action.play();
-                });
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    clock = new THREE.Clock();
+
+    // إضاءة
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(5, 10, 5);
+    scene.add(dirLight);
+
+    // أرضية
+    const tex = new THREE.TextureLoader().load('Assets/unnamed (19).jpg');
+    const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(500, 500),
+        new THREE.MeshStandardMaterial({ map: tex })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // تحميل الشخصية
+    const loader = new THREE.GLTFLoader();
+    loader.load('Assets/chibi_girl_character.glb', (gltf) => {
+
+        girl = gltf.scene;
+        girl.scale.set(1.5, 1.5, 1.5);
+        scene.add(girl);
+
+        mixer = new THREE.AnimationMixer(girl);
+
+        console.log("Animations:", gltf.animations.map(a => a.name));
+
+        gltf.animations.forEach(clip => {
+            const name = clip.name.toLowerCase();
+
+            if (name.includes("idle")) {
+                idleAction = mixer.clipAction(clip);
+            }
+            if (name.includes("walk")) {
+                walkAction = mixer.clipAction(clip);
             }
         });
 
-        camera.position.set(0, 5, 12);
+        // تشغيل الوقوف الافتراضي
+        if (idleAction) idleAction.play();
+    });
+}
 
-        let moveX = 0;
-        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.12; if(girl) girl.rotation.y = -Math.PI / 2; };
-        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.12; if(girl) girl.rotation.y = Math.PI / 2; };
-        window.onpointerup = () => moveX = 0;
+// التحكم
+document.getElementById('leftBtn').onpointerdown = () => {
+    moveX = -0.08;
+    if (girl) girl.rotation.y = Math.PI / 2;
+    startWalk();
+};
 
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            if (mixer) mixer.update(delta);
-            if (girl) {
-                girl.position.x += moveX;
-                camera.position.x = girl.position.x;
-                camera.lookAt(girl.position.x, 2, 0);
-            }
-            renderer.render(scene, camera);
-        }
-        animate();
-    </script>
+document.getElementById('rightBtn').onpointerdown = () => {
+    moveX = 0.08;
+    if (girl) girl.rotation.y = -Math.PI / 2;
+    startWalk();
+};
+
+window.onpointerup = stopWalk;
+
+function startWalk() {
+    if (!walkAction || !idleAction) return;
+    idleAction.stop();
+    walkAction.play();
+}
+
+function stopWalk() {
+    moveX = 0;
+    if (!walkAction || !idleAction) return;
+    walkAction.stop();
+    idleAction.play();
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+
+    if (girl) {
+        girl.position.x += moveX;
+        camera.position.x = girl.position.x;
+        camera.lookAt(girl.position.x, 2, 0);
+    }
+
+    renderer.render(scene, camera);
+}
+</script>
+
 </body>
 </html>
+
