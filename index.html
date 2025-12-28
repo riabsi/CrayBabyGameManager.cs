@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cray Baby - Ultimate Horror</title>
+    <title>Cray Baby - Horror World</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: rgba(255, 0, 0, 0.5); border: 2px solid #fff; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
+        .btn { width: 65px; height: 65px; background: rgba(255,0,0,0.3); border: 2px solid #ff0000; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; font-family: Arial; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -22,92 +22,107 @@
     <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        // 1. الإعدادات الأساسية
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020202);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const clock = new THREE.Clock();
-        const mixers = [];
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        
+        const redLight = new THREE.PointLight(0xff0000, 2, 50);
+        redLight.position.set(0, 5, 5);
+        scene.add(redLight);
 
-        // إضاءة لرؤية المجسمات
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
-        const pLight = new THREE.PointLight(0xff0000, 2, 50);
-        pLight.position.set(0, 5, 5);
-        scene.add(pLight);
-
-        // الأرضية
         const textureLoader = new THREE.TextureLoader();
         const groundTex = textureLoader.load('أصول/unnamed (19).jpg');
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ map: groundTex || null, color: 0x333333 })
+            new THREE.MeshStandardMaterial({ map: groundTex || null, color: 0x444444 })
         );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
         const loader = new THREE.GLTFLoader();
-        let playerModel, zombieModel;
+        let player, zombie, dog, girl;
 
-        // دالة تحميل آمنة
-        function safeLoad(file, scale, x, z, isPlayer) {
-            loader.load('assets/' + file, function(gltf) {
+        function loadModel(fileName, scale, posX, posZ, callback) {
+            const path = 'أصول/' + fileName;
+            loader.load(path, function(gltf) {
                 const model = gltf.scene;
                 model.scale.set(scale, scale, scale);
-                model.position.set(x, 0, z);
+                model.position.set(posX, 0, posZ);
                 scene.add(model);
-
-                if(isPlayer) playerModel = model;
-                if(file.includes('zombie')) zombieModel = model;
-
-                // تشغيل الأنيميشن إذا وجد
-                if (gltf.animations && gltf.animations.length > 0) {
-                    const mixer = new THREE.AnimationMixer(model);
-                    mixer.clipAction(gltf.animations[0]).play();
-                    mixers.push(mixer);
-                }
-            }, undefined, function(err) { console.error("خطأ تحميل " + file); });
+                if (callback) callback(model);
+            }, undefined, function() {
+                loader.load('Assets/' + fileName, function(gltf) {
+                    const model = gltf.scene;
+                    model.scale.set(scale, scale, scale);
+                    model.position.set(posX, 0, posZ);
+                    scene.add(model);
+                    if (callback) callback(model);
+                });
+            });
         }
 
-        // تحميل المجسمات الموجودة في صورتك
-        safeLoad('zombie.glb', 0.04, 0, -5, false);
-        safeLoad('zombie_dog.glb', 0.02, -3, -2, false);
-        safeLoad('chibi_girl_character.glb', 0.04, 3, -2, false);
-        // هذا سيعمل فور رفعه لـ GitHub
-        safeLoad('cyber_warrior.glb', 0.04, 0, 0, true);
+        // 1. البطل
+        loadModel('cyber_warrior.glb', 0.05, 0, 0, function(m) { player = m; });
 
-        camera.position.set(0, 5, 12);
+        // 2. الزومبي
+        loadModel('zombie.glb', 0.05, 0, -15, function(m) { zombie = m; });
 
-        // تحكم الحركة
-        let moveX = 0;
-        document.getElementById('leftBtn').onpointerdown = () => moveX = -0.1;
-        document.getElementById('rightBtn').onpointerdown = () => moveX = 0.1;
-        window.onpointerup = () => moveX = 0;
+        // 3. كلب الزومبي
+        loadModel('zombie_dog.glb', 0.02, -5, -10, function(m) { dog = m; });
 
-        document.getElementById('jumpBtn').onpointerdown = () => {
-            if(playerModel && playerModel.position.y <= 0.05) {
-                let up = 0.2;
-                function jumpFrame() {
-                    playerModel.position.y += up;
-                    up -= 0.015;
-                    if(playerModel.position.y > 0) requestAnimationFrame(jumpFrame);
-                    else playerModel.position.y = 0;
-                }
-                jumpFrame();
-            }
+        // 4. الفتاة اللطيفة (إضافة جديدة بناءً على طلبك)
+        loadModel('chibi_girl_character.glb', 0.04, 5, -5, function(m) { girl = m; });
+
+        camera.position.set(0, 6, 18);
+
+        // تعديل التحكم ليعمل على المتصفحات الحديثة والموبايل بدقة
+        let moveLeft = false, moveRight = false, isJumping = false;
+        let jumpVelocity = 0;
+
+        const setLeft = (val) => moveLeft = val;
+        const setRight = (val) => moveRight = val;
+
+        document.getElementById('leftBtn').onpointerdown = () => setLeft(true);
+        document.getElementById('leftBtn').onpointerup = () => setLeft(false);
+        document.getElementById('rightBtn').onpointerdown = () => setRight(true);
+        document.getElementById('rightBtn').onpointerup = () => setRight(false);
+        
+        document.getElementById('jumpBtn').onclick = () => { 
+            if(!isJumping && player) { 
+                isJumping = true; 
+                jumpVelocity = 0.25; 
+            } 
         };
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            mixers.forEach(m => m.update(delta));
 
-            if(playerModel) {
-                playerModel.position.x += moveX;
-                camera.position.x = playerModel.position.x;
-                camera.lookAt(playerModel.position.x, 1, 0);
+            if (player) {
+                if (moveLeft) player.position.x -= 0.15;
+                if (moveRight) player.position.x += 0.15;
+                if (isJumping) {
+                    player.position.y += jumpVelocity;
+                    jumpVelocity -= 0.015;
+                    if (player.position.y <= 0) { player.position.y = 0; isJumping = false; }
+                }
+                camera.position.x = player.position.x;
+                camera.lookAt(player.position.x, 2, player.position.z);
+                redLight.position.set(player.position.x, 5, player.position.z + 2);
+            }
+
+            if (zombie && player) {
+                zombie.position.z += 0.04;
+                zombie.lookAt(player.position);
+            }
+            if (dog && player) {
+                dog.position.z += 0.06;
+                dog.lookAt(player.position);
             }
 
             renderer.render(scene, camera);
