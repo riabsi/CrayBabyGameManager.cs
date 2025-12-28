@@ -2,12 +2,12 @@
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cray Baby - Horror World</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cray Baby - Live Action Game</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
-        .btn { width: 65px; height: 65px; background: rgba(255,0,0,0.3); border: 2px solid #ff0000; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; font-family: Arial; font-weight: bold; }
+        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .btn { width: 75px; height: 75px; background: rgba(255, 0, 0, 0.4); border: 3px solid #ff0000; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; -webkit-user-select: none; }
     </style>
 </head>
 <body>
@@ -23,112 +23,84 @@
 
     <script>
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020202);
+        scene.background = new THREE.Color(0x050505);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // إضاءة محيطية خفيفة
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
-        
-        // ضوء أحمر مرعب يتبع اللاعب
-        const redLight = new THREE.PointLight(0xff0000, 2, 50);
-        redLight.position.set(0, 5, 5);
-        scene.add(redLight);
+        const clock = new THREE.Clock(); // ضروري لتوقيت الحركة
+        const mixers = []; // قائمة لتخزين حركات جميع المجسمات
 
-        // إنشاء الأرضية باستخدام صورتك
+        // إضاءة قوية لرؤية التفاصيل
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
+        const spotLight = new THREE.SpotLight(0xff0000, 3);
+        spotLight.position.set(0, 10, 10);
+        scene.add(spotLight);
+
+        // الأرضية
         const textureLoader = new THREE.TextureLoader();
         const groundTex = textureLoader.load('أصول/unnamed (19).jpg');
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ map: groundTex, color: 0x444444 })
+            new THREE.MeshStandardMaterial({ map: groundTex })
         );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
         const loader = new THREE.GLTFLoader();
-        let player, zombie, dog;
+        let player;
 
-        // دالة تحميل تدعم المجلدين (أصول و Assets) وتدعم التصغير
-        function loadModel(fileName, scale, posX, posZ, callback) {
-            const path = 'أصول/' + fileName;
-            loader.load(path, function(gltf) {
+        // دالة تحميل المجسمات مع تشغيل الحركة تلقائياً
+        function loadAnimatedModel(file, scale, x, z) {
+            loader.load('أصول/' + file, function(gltf) {
                 const model = gltf.scene;
                 model.scale.set(scale, scale, scale);
-                model.position.set(posX, 0, posZ);
+                model.position.set(x, 0, z);
                 scene.add(model);
-                if (callback) callback(model);
-            }, undefined, function() {
-                // محاولة أخرى إذا فشل المسار الأول
-                loader.load('Assets/' + fileName, function(gltf) {
-                    const model = gltf.scene;
-                    model.scale.set(scale, scale, scale);
-                    model.position.set(posX, 0, posZ);
-                    scene.add(model);
-                    if (callback) callback(model);
-                });
+
+                if (file.includes('warrior')) player = model;
+
+                // إذا كان الملف يحتوي على أنيميشن، قم بتشغيله
+                if (gltf.animations && gltf.animations.length > 0) {
+                    const mixer = new THREE.AnimationMixer(model);
+                    const action = mixer.clipAction(gltf.animations[0]); // تشغيل الحركة الأولى
+                    action.play();
+                    mixers.push(mixer); // إضافة المحرك للقائمة لتحديثه
+                }
             });
         }
 
-        // 1. تحميل البطل (المحارب السيبراني) - تم تصغيره لـ 0.05
-        loadModel('cyber_warrior.glb', 0.05, 0, 0, function(m) { player = m; });
+        // تحميل المجسمات التي لديك
+        loadAnimatedModel('zombie.glb', 0.05, 0, -5); 
+        loadAnimatedModel('zombie_dog.glb', 0.02, -4, -3);
+        loadAnimatedModel('chibi_girl_character.glb', 0.04, 3, -2);
+        loadAnimatedModel('cyber_warrior.glb', 0.05, 0, 2);
 
-        // 2. تحميل الزومبي - تم تصغيره لـ 0.05
-        loadModel('zombie.glb', 0.05, 0, -15, function(m) { zombie = m; });
+        camera.position.set(0, 5, 15);
+        camera.lookAt(0, 0, 0);
 
-        // 3. تحميل كلب الزومبي - تم تصغيره لـ 0.02
-        loadModel('zombie_dog.glb', 0.02, -5, -10, function(m) { dog = m; });
-
-        // ضبط الكاميرا لتكون بعيدة وترى المشهد كاملاً
-        camera.position.set(0, 6, 18);
-
-        // نظام التحكم
-        let moveLeft = false, moveRight = false, isJumping = false;
-        let jumpVelocity = 0;
-
-        document.getElementById('leftBtn').ontouchstart = () => moveLeft = true;
-        document.getElementById('leftBtn').ontouchend = () => moveLeft = false;
-        document.getElementById('rightBtn').ontouchstart = () => moveRight = true;
-        document.getElementById('rightBtn').ontouchend = () => moveRight = false;
-        document.getElementById('jumpBtn').onclick = () => { if(!isJumping) { isJumping = true; jumpVelocity = 0.25; } };
+        // أزرار التحكم
+        let moveDir = 0;
+        document.getElementById('leftBtn').onpointerdown = () => moveDir = 0.15;
+        document.getElementById('rightBtn').onpointerdown = () => moveDir = -0.15;
+        document.body.onpointerup = () => moveDir = 0;
 
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            // تحديث حركات جميع المجسمات (الأقدام، اليدين، إلخ)
+            mixers.forEach(mixer => mixer.update(delta));
 
             if (player) {
-                if (moveLeft) player.position.x -= 0.15;
-                if (moveRight) player.position.x += 0.15;
-                if (isJumping) {
-                    player.position.y += jumpVelocity;
-                    jumpVelocity -= 0.015;
-                    if (player.position.y <= 0) { player.position.y = 0; isJumping = false; }
-                }
+                player.position.x += moveDir;
                 camera.position.x = player.position.x;
-                camera.lookAt(player.position.x, 2, player.position.z);
-                redLight.position.set(player.position.x, 5, player.position.z + 2);
-            }
-
-            // مطاردة الزومبي والكلب للبطل
-            if (zombie && player) {
-                zombie.position.z += 0.04;
-                zombie.lookAt(player.position);
-            }
-            if (dog && player) {
-                dog.position.z += 0.06;
-                dog.lookAt(player.position);
             }
 
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
