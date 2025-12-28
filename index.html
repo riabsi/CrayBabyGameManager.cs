@@ -3,24 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Girl Adventure - Fix</title>
+    <title>Professional Girl Adventure</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
-        .btn { 
-            width: 75px; height: 75px; background: rgba(0, 150, 255, 0.7); 
-            border: 3px solid #ffffff; border-radius: 50%; color: white; 
-            display: flex; align-items: center; justify-content: center; 
-            font-family: Arial, sans-serif; font-weight: bold; cursor: pointer; 
-            user-select: none; -webkit-tap-highlight-color: transparent; 
-        }
+        .btn { width: 75px; height: 75px; background: rgba(0, 150, 255, 0.7); border: 3px solid #fff; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; user-select: none; }
     </style>
 </head>
 <body>
 
     <div id="controls">
         <div class="btn" id="leftBtn">LEFT</div>
-        <div class="btn" id="jumpBtn">JUMP</div>
         <div class="btn" id="rightBtn">RIGHT</div>
     </div>
 
@@ -29,53 +22,50 @@
 
     <script>
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // لون سماء فاتح للتأكد من الرؤية
+        scene.background = new THREE.Color(0x87CEEB);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         const clock = new THREE.Clock();
-        let mixer, girl;
+        let mixer, girl, allActions = [];
 
-        // إضاءة قوية جداً من كل الجهات
-        scene.add(new THREE.AmbientLight(0xffffff, 2)); 
-        const light = new THREE.DirectionalLight(0xffffff, 2);
-        light.position.set(0, 10, 10);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        const light = new THREE.DirectionalLight(0xffffff, 1.5);
+        light.position.set(5, 10, 5);
         scene.add(light);
 
         // تحميل الأرضية
         const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('Assets/unnamed (19).jpg', function(texture) {
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ map: texture }));
+        textureLoader.load('Assets/unnamed (19).jpg', function(tex) {
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ map: tex }));
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
         });
 
-        // تحميل الفتاة مع تعديل الحجم والتموضع
+        // تحميل الفتاة مع تشغيل حركات المفاصل
         const loader = new THREE.GLTFLoader();
         loader.load('Assets/chibi_girl_character.glb', function(gltf) {
             girl = gltf.scene;
-            
-            // قمنا بزيادة الحجم لـ 1.0 (بدلاً من 0.1) لضمان ظهورها
-            girl.scale.set(1.0, 1.0, 1.0); 
-            girl.position.set(0, 0, 0);
+            girl.scale.set(1.5, 1.5, 1.5); 
             scene.add(girl);
 
             if (gltf.animations && gltf.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(girl);
-                mixer.clipAction(gltf.animations[0]).play();
+                // تشغيل كل الحركات المسجلة في الملف لإنهاء حالة الزحف
+                gltf.animations.forEach((clip) => {
+                    const action = mixer.clipAction(clip);
+                    action.play();
+                });
             }
-        }, undefined, function(error) {
-            console.error("Error loading model:", error);
         });
 
-        // تقريب الكاميرا لكي نرى الفتاة بوضوح
-        camera.position.set(0, 4, 10); 
+        camera.position.set(0, 5, 12);
 
         let moveX = 0;
-        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.1; if(girl) girl.rotation.y = -Math.PI / 2; };
-        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.1; if(girl) girl.rotation.y = Math.PI / 2; };
+        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.12; if(girl) girl.rotation.y = -Math.PI / 2; };
+        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.12; if(girl) girl.rotation.y = Math.PI / 2; };
         window.onpointerup = () => moveX = 0;
 
         function animate() {
@@ -85,7 +75,7 @@
             if (girl) {
                 girl.position.x += moveX;
                 camera.position.x = girl.position.x;
-                camera.lookAt(girl.position.x, 1, 0);
+                camera.lookAt(girl.position.x, 2, 0);
             }
             renderer.render(scene, camera);
         }
