@@ -7,7 +7,7 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; }
         #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
-        .btn { width: 65px; height: 65px; background: rgba(255,0,0,0.3); border: 2px solid #ff0000; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; font-family: Arial; }
+        .btn { width: 65px; height: 65px; background: rgba(255,0,0,0.3); border: 2px solid #ff0000; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; font-family: Arial; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -23,25 +23,27 @@
 
     <script>
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
+        scene.background = new THREE.Color(0x020202);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // إضاءة مرعبة حمراء
-        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
-        scene.add(light);
+        // إضاءة محيطية خفيفة
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+        
+        // ضوء أحمر مرعب يتبع اللاعب
         const redLight = new THREE.PointLight(0xff0000, 2, 50);
         redLight.position.set(0, 5, 5);
         scene.add(redLight);
 
-        // إنشاء الأرضية
+        // إنشاء الأرضية باستخدام صورتك
         const textureLoader = new THREE.TextureLoader();
-        const groundTex = textureLoader.load('أصول/unnamed (19).jpg'); // يحاول التحميل من مجلد أصول
+        const groundTex = textureLoader.load('أصول/unnamed (19).jpg');
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ map: groundTex || null, color: 0x220000 })
+            new THREE.MeshStandardMaterial({ map: groundTex, color: 0x444444 })
         );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
@@ -49,39 +51,38 @@
         const loader = new THREE.GLTFLoader();
         let player, zombie, dog;
 
-        // دالة ذكية للتحميل تدعم المجلدين (أصول و Assets)
-        function smartLoad(fileName, callback) {
-            loader.load('أصول/' + fileName, callback, undefined, function() {
-                loader.load('Assets/' + fileName, callback, undefined, function() {
-                    console.error("لم يتم العثور على الملف: " + fileName);
+        // دالة تحميل تدعم المجلدين (أصول و Assets) وتدعم التصغير
+        function loadModel(fileName, scale, posX, posZ, callback) {
+            const path = 'أصول/' + fileName;
+            loader.load(path, function(gltf) {
+                const model = gltf.scene;
+                model.scale.set(scale, scale, scale);
+                model.position.set(posX, 0, posZ);
+                scene.add(model);
+                if (callback) callback(model);
+            }, undefined, function() {
+                // محاولة أخرى إذا فشل المسار الأول
+                loader.load('Assets/' + fileName, function(gltf) {
+                    const model = gltf.scene;
+                    model.scale.set(scale, scale, scale);
+                    model.position.set(posX, 0, posZ);
+                    scene.add(model);
+                    if (callback) callback(model);
                 });
             });
         }
 
-        // 1. تحميل المحارب (البطل)
-        smartLoad('cyber_warrior.glb', function(gltf) {
-            player = gltf.scene;
-            player.scale.set(1, 1, 1);
-            scene.add(player);
-        });
+        // 1. تحميل البطل (المحارب السيبراني) - تم تصغيره لـ 0.05
+        loadModel('cyber_warrior.glb', 0.05, 0, 0, function(m) { player = m; });
 
-        // 2. تحميل الزومبي (العدو)
-        smartLoad('zombie.glb', function(gltf) {
-            zombie = gltf.scene;
-            zombie.scale.set(1.2, 1.2, 1.2);
-            zombie.position.set(0, 0, -15);
-            scene.add(zombie);
-        });
+        // 2. تحميل الزومبي - تم تصغيره لـ 0.05
+        loadModel('zombie.glb', 0.05, 0, -15, function(m) { zombie = m; });
 
-        // 3. تحميل كلب الزومبي
-        smartLoad('zombie_dog.glb', function(gltf) {
-            dog = gltf.scene;
-            dog.scale.set(0.8, 0.8, 0.8);
-            dog.position.set(-5, 0, -10);
-            scene.add(dog);
-        });
+        // 3. تحميل كلب الزومبي - تم تصغيره لـ 0.02
+        loadModel('zombie_dog.glb', 0.02, -5, -10, function(m) { dog = m; });
 
-        camera.position.set(0, 5, 10);
+        // ضبط الكاميرا لتكون بعيدة وترى المشهد كاملاً
+        camera.position.set(0, 6, 18);
 
         // نظام التحكم
         let moveLeft = false, moveRight = false, isJumping = false;
@@ -91,33 +92,43 @@
         document.getElementById('leftBtn').ontouchend = () => moveLeft = false;
         document.getElementById('rightBtn').ontouchstart = () => moveRight = true;
         document.getElementById('rightBtn').ontouchend = () => moveRight = false;
-        document.getElementById('jumpBtn').onclick = () => { if(!isJumping) { isJumping = true; jumpVelocity = 0.2; } };
+        document.getElementById('jumpBtn').onclick = () => { if(!isJumping) { isJumping = true; jumpVelocity = 0.25; } };
 
         function animate() {
             requestAnimationFrame(animate);
 
             if (player) {
-                if (moveLeft) player.position.x -= 0.1;
-                if (moveRight) player.position.x += 0.1;
+                if (moveLeft) player.position.x -= 0.15;
+                if (moveRight) player.position.x += 0.15;
                 if (isJumping) {
                     player.position.y += jumpVelocity;
-                    jumpVelocity -= 0.01;
+                    jumpVelocity -= 0.015;
                     if (player.position.y <= 0) { player.position.y = 0; isJumping = false; }
                 }
                 camera.position.x = player.position.x;
-                camera.lookAt(player.position);
+                camera.lookAt(player.position.x, 2, player.position.z);
+                redLight.position.set(player.position.x, 5, player.position.z + 2);
             }
 
-            // مطاردة الأعداء
+            // مطاردة الزومبي والكلب للبطل
             if (zombie && player) {
-                zombie.position.z += 0.03;
-                if (zombie.position.x < player.position.x) zombie.position.x += 0.01;
-                else zombie.position.x -= 0.01;
+                zombie.position.z += 0.04;
+                zombie.lookAt(player.position);
+            }
+            if (dog && player) {
+                dog.position.z += 0.06;
+                dog.lookAt(player.position);
             }
 
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
