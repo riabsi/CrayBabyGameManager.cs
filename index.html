@@ -1,81 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Three.js Character Controller</title>
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Girl Adventure - $CRAY</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; overflow: hidden; }
+        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
+        .btn { 
+            width: 75px; height: 75px; background: rgba(0, 150, 255, 0.6); 
+            border: 3px solid #ffffff; border-radius: 50%; color: white; 
+            display: flex; align-items: center; justify-content: center; 
+            font-family: Arial, sans-serif; font-weight: bold; cursor: pointer; 
+            user-select: none; -webkit-tap-highlight-color: transparent; 
+        }
     </style>
 </head>
 <body>
-    <script type="module">
-        import * as THREE from 'https://cdn.skypack.dev/three@0.128.0/build/three.module.js';
-        import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 
-        class CharacterControllerProxy {
-            constructor(animations) { this._animations = animations; }
-            get animations() { return this._animations; }
+    <div id="controls">
+        <div class="btn" id="leftBtn">LEFT</div>
+        <div class="btn" id="jumpBtn">JUMP</div>
+        <div class="btn" id="rightBtn">RIGHT</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        // 1. إعداد المشهد والكاميرا
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111111);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const clock = new THREE.Clock();
+        let mixer, girl;
+
+        // 2. الإضاءة (نور أبيض قوي لرؤية الفتاة بوضوح)
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+
+        // 3. الأرضية (باستخدام صورتك الموجودة مسبقاً)
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load('Assets/unnamed (19).jpg', function(texture) {
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(200, 200),
+                new THREE.MeshStandardMaterial({ map: texture })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+        });
+
+        // 4. استدعاء مجسم الفتاة (من ملفك الموجود في Assets)
+        const loader = new THREE.GLTFLoader();
+        // تأكد أن الاسم مطابق تماماً لما هو موجود في GitHub
+        loader.load('Assets/chibi_girl_character.glb', function(gltf) {
+            girl = gltf.scene;
+            girl.scale.set(0.1, 0.1, 0.1); // حجم مناسب للفتاة
+            girl.position.set(0, 0, 0);
+            scene.add(girl);
+
+            // تشغيل حركة المفاصل (إذا كانت الفتاة Animated)
+            if (gltf.animations && gltf.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(girl);
+                const action = mixer.clipAction(gltf.animations[0]);
+                action.play();
+            }
+        });
+
+        camera.position.set(0, 6, 15);
+
+        // 5. نظام التحكم
+        let moveX = 0;
+        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.15; if(girl) girl.rotation.y = -Math.PI / 2; };
+        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.15; if(girl) girl.rotation.y = Math.PI / 2; };
+        window.onpointerup = () => moveX = 0;
+
+        // 6. التحريك المستمر
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
+            if (girl) {
+                girl.position.x += moveX;
+                camera.position.x = girl.position.x;
+                camera.lookAt(girl.position.x, 2, 0);
+            }
+            renderer.render(scene, camera);
         }
+        animate();
 
-        class GameScene {
-            constructor() { this._Initialize(); }
-
-            _Initialize() {
-                this._threejs = new THREE.WebGLRenderer({ antialias: true });
-                this._threejs.setSize(window.innerWidth, window.innerHeight);
-                document.body.appendChild(this._threejs.domElement);
-
-                this._scene = new THREE.Scene();
-                this._camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
-                this._camera.position.set(0, 10, 20);
-
-                const light = new THREE.DirectionalLight(0xFFFFFF, 1.0);
-                light.position.set(20, 100, 10);
-                this._scene.add(light);
-                this._scene.add(new THREE.AmbientLight(0x404040));
-
-                this._mixers = [];
-                this._previousRAF = null;
-
-                this._LoadModel();
-                this._RAF();
-            }
-
-            _LoadModel() {
-                const loader = new GLTFLoader();
-                // هنا يتم وضع رابط أي ملف GLB من الإنترنت
-                loader.load('./Assets/zombie.glb', (gltf) => {
-                    const model = gltf.scene;
-                    this._scene.add(model);
-
-                    const m = new THREE.AnimationMixer(model);
-                    this._mixers.push(m);
-
-                    // تشغيل كل الحركات الموجودة في الملف الأصلي
-                    gltf.animations.forEach((clip) => {
-                        m.clipAction(clip).play();
-                    });
-                });
-            }
-
-            _RAF() {
-                requestAnimationFrame((t) => {
-                    if (this._previousRAF === null) { this._previousRAF = t; }
-                    this._Step(t - this._previousRAF);
-                    this._threejs.render(this._scene, this._camera);
-                    this._previousRAF = t;
-                    this._RAF();
-                });
-            }
-
-            _Step(timeElapsed) {
-                const timeElapsedS = timeElapsed * 0.001;
-                if (this._mixers) { this._mixers.map(m => m.update(timeElapsedS)); }
-            }
-        }
-
-        let _APP = null;
-        window.addEventListener('DOMContentLoaded', () => { _APP = new GameScene(); });
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
