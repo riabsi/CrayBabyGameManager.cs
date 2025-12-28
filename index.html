@@ -1,97 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cray Baby - Real Movement</title>
+    <title>Three.js Character Controller</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
-        .btn { 
-            width: 75px; height: 75px; background: rgba(255, 0, 0, 0.6); 
-            border: 3px solid #ffffff; border-radius: 50%; color: white; 
-            display: flex; align-items: center; justify-content: center; 
-            font-family: Arial, sans-serif; font-weight: bold; cursor: pointer; 
-            user-select: none; -webkit-tap-highlight-color: transparent; 
-        }
+        body { margin: 0; background-color: #000; color: #fff; overflow: hidden; }
     </style>
 </head>
 <body>
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.128.0/build/three.module.js';
+        import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 
-    <div id="controls">
-        <div class="btn" id="leftBtn">LEFT</div>
-        <div class="btn" id="jumpBtn">JUMP</div>
-        <div class="btn" id="rightBtn">RIGHT</div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
-
-    <script>
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        const clock = new THREE.Clock();
-        let mixer; 
-
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
-        const pLight = new THREE.PointLight(0xff0000, 4, 100);
-        pLight.position.set(0, 10, 10);
-        scene.add(pLight);
-
-        const loader = new THREE.GLTFLoader();
-        let zombie;
-
-        // تحميل الزومبي مع تفعيل محرك المفاصل بدقة
-        loader.load('Assets/zombie.glb', function(gltf) {
-            zombie = gltf.scene;
-            zombie.scale.set(0.05, 0.05, 0.05);
-            zombie.position.set(0, 0, 0);
-            scene.add(zombie);
-
-            // تفعيل حركات المفاصل (Animations)
-            if (gltf.animations && gltf.animations.length > 0) {
-                mixer = new THREE.AnimationMixer(zombie);
-                // سنقوم بتشغيل الحركة الأولى (غالباً تكون المشي أو الوقوف)
-                const action = mixer.clipAction(gltf.animations[0]);
-                action.play();
-                console.log("Animations found: " + gltf.animations.length);
-            }
-        });
-
-        // تحميل الكلب
-        loader.load('Assets/zombie_dog.glb', (gltf) => {
-            const dog = gltf.scene;
-            dog.scale.set(0.02, 0.02, 0.02);
-            dog.position.set(-5, 0, -2);
-            scene.add(dog);
-        });
-
-        camera.position.set(0, 6, 18);
-
-        let moveX = 0;
-        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.15; if(zombie) zombie.rotation.y = -Math.PI / 2; };
-        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.15; if(zombie) zombie.rotation.y = Math.PI / 2; };
-        window.onpointerup = () => moveX = 0;
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            
-            // تحديث حركة المفاصل في كل فريم
-            if (mixer) mixer.update(delta);
-
-            if (zombie) {
-                zombie.position.x += moveX;
-                camera.position.x = zombie.position.x;
-                camera.lookAt(zombie.position.x, 1, 0);
-            }
-            renderer.render(scene, camera);
+        class CharacterControllerProxy {
+            constructor(animations) { this._animations = animations; }
+            get animations() { return this._animations; }
         }
-        animate();
+
+        class GameScene {
+            constructor() { this._Initialize(); }
+
+            _Initialize() {
+                this._threejs = new THREE.WebGLRenderer({ antialias: true });
+                this._threejs.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(this._threejs.domElement);
+
+                this._scene = new THREE.Scene();
+                this._camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+                this._camera.position.set(0, 10, 20);
+
+                const light = new THREE.DirectionalLight(0xFFFFFF, 1.0);
+                light.position.set(20, 100, 10);
+                this._scene.add(light);
+                this._scene.add(new THREE.AmbientLight(0x404040));
+
+                this._mixers = [];
+                this._previousRAF = null;
+
+                this._LoadModel();
+                this._RAF();
+            }
+
+            _LoadModel() {
+                const loader = new GLTFLoader();
+                // هنا يتم وضع رابط أي ملف GLB من الإنترنت
+                loader.load('./Assets/zombie.glb', (gltf) => {
+                    const model = gltf.scene;
+                    this._scene.add(model);
+
+                    const m = new THREE.AnimationMixer(model);
+                    this._mixers.push(m);
+
+                    // تشغيل كل الحركات الموجودة في الملف الأصلي
+                    gltf.animations.forEach((clip) => {
+                        m.clipAction(clip).play();
+                    });
+                });
+            }
+
+            _RAF() {
+                requestAnimationFrame((t) => {
+                    if (this._previousRAF === null) { this._previousRAF = t; }
+                    this._Step(t - this._previousRAF);
+                    this._threejs.render(this._scene, this._camera);
+                    this._previousRAF = t;
+                    this._RAF();
+                });
+            }
+
+            _Step(timeElapsed) {
+                const timeElapsedS = timeElapsed * 0.001;
+                if (this._mixers) { this._mixers.map(m => m.update(timeElapsedS)); }
+            }
+        }
+
+        let _APP = null;
+        window.addEventListener('DOMContentLoaded', () => { _APP = new GameScene(); });
     </script>
 </body>
 </html>
