@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cray Baby - The Horror Adventure</title>
+    <title>Cray Baby - Horror World</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; }
         #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
-        .btn { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; }
+        .btn { width: 65px; height: 65px; background: rgba(255,0,0,0.3); border: 2px solid #ff0000; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; font-family: Arial; }
     </style>
 </head>
 <body>
@@ -22,54 +22,68 @@
     <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        // 1. إعداد المشهد والإضاءة المرعبة
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505); // غابة مظلمة
+        scene.background = new THREE.Color(0x050505);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // إضاءة مرعبة حمراء
         const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
         scene.add(light);
-        const spotLight = new THREE.SpotLight(0xff0000, 2); // ضوء أحمر خفيف للرعب
-        spotLight.position.set(0, 10, 0);
-        scene.add(spotLight);
+        const redLight = new THREE.PointLight(0xff0000, 2, 50);
+        redLight.position.set(0, 5, 5);
+        scene.add(redLight);
 
-        // 2. إنشاء الأرضية (باستخدام صورتك unnamed 19)
+        // إنشاء الأرضية
         const textureLoader = new THREE.TextureLoader();
-        const groundTex = textureLoader.load('Assets/unnamed (19).jpg');
+        const groundTex = textureLoader.load('أصول/unnamed (19).jpg'); // يحاول التحميل من مجلد أصول
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ map: groundTex })
+            new THREE.MeshStandardMaterial({ map: groundTex || null, color: 0x220000 })
         );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
-        // 3. تحميل الأجسام الحقيقية التي حملتها يا رياض
         const loader = new THREE.GLTFLoader();
-        let player, zombie;
+        let player, zombie, dog;
 
-        // تحميل البطل (المحارب السيبراني)
-        loader.load('Assets/cyber_warrior.glb', function(gltf) {
+        // دالة ذكية للتحميل تدعم المجلدين (أصول و Assets)
+        function smartLoad(fileName, callback) {
+            loader.load('أصول/' + fileName, callback, undefined, function() {
+                loader.load('Assets/' + fileName, callback, undefined, function() {
+                    console.error("لم يتم العثور على الملف: " + fileName);
+                });
+            });
+        }
+
+        // 1. تحميل المحارب (البطل)
+        smartLoad('cyber_warrior.glb', function(gltf) {
             player = gltf.scene;
             player.scale.set(1, 1, 1);
-            player.position.set(0, 0, 0);
             scene.add(player);
         });
 
-        // تحميل العدو (الزومبي)
-        loader.load('Assets/zombie.glb', function(gltf) {
+        // 2. تحميل الزومبي (العدو)
+        smartLoad('zombie.glb', function(gltf) {
             zombie = gltf.scene;
             zombie.scale.set(1.2, 1.2, 1.2);
-            zombie.position.set(0, 0, -15); // يبدأ بعيداً
+            zombie.position.set(0, 0, -15);
             scene.add(zombie);
         });
 
-        camera.position.set(0, 5, 10);
-        camera.lookAt(0, 0, 0);
+        // 3. تحميل كلب الزومبي
+        smartLoad('zombie_dog.glb', function(gltf) {
+            dog = gltf.scene;
+            dog.scale.set(0.8, 0.8, 0.8);
+            dog.position.set(-5, 0, -10);
+            scene.add(dog);
+        });
 
-        // 4. نظام الحركة والتحكم
+        camera.position.set(0, 5, 10);
+
+        // نظام التحكم
         let moveLeft = false, moveRight = false, isJumping = false;
         let jumpVelocity = 0;
 
@@ -79,42 +93,31 @@
         document.getElementById('rightBtn').ontouchend = () => moveRight = false;
         document.getElementById('jumpBtn').onclick = () => { if(!isJumping) { isJumping = true; jumpVelocity = 0.2; } };
 
-        // 5. محرك اللعبة (Animation Loop)
         function animate() {
             requestAnimationFrame(animate);
 
             if (player) {
                 if (moveLeft) player.position.x -= 0.1;
                 if (moveRight) player.position.x += 0.1;
-
-                // نظام الجاذبية والقفز
                 if (isJumping) {
                     player.position.y += jumpVelocity;
                     jumpVelocity -= 0.01;
-                    if (player.position.y <= 0) {
-                        player.position.y = 0;
-                        isJumping = false;
-                    }
+                    if (player.position.y <= 0) { player.position.y = 0; isJumping = false; }
                 }
-                camera.position.x = player.position.x; // الكاميرا تتبع البطل
+                camera.position.x = player.position.x;
+                camera.lookAt(player.position);
             }
 
-            // الزومبي يطارد البطل
+            // مطاردة الأعداء
             if (zombie && player) {
-                if (zombie.position.z < player.position.z) zombie.position.z += 0.03;
-                if (zombie.position.x < player.position.x) zombie.position.x += 0.02;
-                if (zombie.position.x > player.position.x) zombie.position.x -= 0.02;
+                zombie.position.z += 0.03;
+                if (zombie.position.x < player.position.x) zombie.position.x += 0.01;
+                else zombie.position.x -= 0.01;
             }
 
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
