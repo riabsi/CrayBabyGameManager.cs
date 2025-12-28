@@ -5,9 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Cray Baby - Ultimate Horror</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: rgba(255, 0, 0, 0.5); border: 2px solid #fff; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; font-family: sans-serif; }
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
+        .btn { 
+            width: 75px; height: 75px; 
+            background: rgba(150, 0, 0, 0.6); 
+            border: 2px solid #fff; 
+            border-radius: 50%; 
+            color: white; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; cursor: pointer; 
+            user-select: none; -webkit-tap-highlight-color: transparent;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        }
+        .btn:active { background: rgba(255, 0, 0, 0.8); transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -22,98 +33,140 @@
     <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        // 1. الإعدادات الأساسية
+        // 1. الإعدادات الأساسية والمشهد
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020202); // خلفية شبه سوداء لضمان عمل الرندر
+        
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
         const clock = new THREE.Clock();
         const mixers = [];
+        let playerModel, moveX = 0;
 
-        // إضاءة لرؤية المجسمات
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
-        const pLight = new THREE.PointLight(0xff0000, 2, 50);
-        pLight.position.set(0, 5, 5);
-        scene.add(pLight);
+        // 2. الإضاءة (تم تقويتها للتأكد من الرؤية)
+        const ambientLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+        scene.add(ambientLight);
 
-        // الأرضية
+        const flashLight = new THREE.PointLight(0xff0000, 2, 20);
+        flashLight.position.set(0, 5, 5);
+        scene.add(flashLight);
+
+        // 3. الأرضية (تأكد من وجود unnamed (19).jpg داخل مجلد assets)
         const textureLoader = new THREE.TextureLoader();
-        const groundTex = textureLoader.load('أصول/unnamed (19).jpg');
+        const groundTex = textureLoader.load('assets/unnamed (19).jpg', 
+            undefined, 
+            undefined, 
+            (err) => console.error("فشل تحميل نسيج الأرضية")
+        );
+        
         const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ map: groundTex || null, color: 0x333333 })
+            new THREE.PlaneGeometry(200, 200),
+            new THREE.MeshStandardMaterial({ map: groundTex, color: 0x555555 })
         );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
+        // 4. دالة التحميل المصححة
         const loader = new THREE.GLTFLoader();
-        let playerModel, zombieModel;
 
-        // دالة تحميل آمنة
         function safeLoad(file, scale, x, z, isPlayer) {
-            loader.load('أصول/' + file, function(gltf) {
+            // ملاحظة: تم تغيير المسار إلى assets/
+            loader.load('assets/' + file, function(gltf) {
                 const model = gltf.scene;
                 model.scale.set(scale, scale, scale);
                 model.position.set(x, 0, z);
                 scene.add(model);
 
                 if(isPlayer) playerModel = model;
-                if(file.includes('zombie')) zombieModel = model;
 
-                // تشغيل الأنيميشن إذا وجد
                 if (gltf.animations && gltf.animations.length > 0) {
                     const mixer = new THREE.AnimationMixer(model);
-                    mixer.clipAction(gltf.animations[0]).play();
+                    const action = mixer.clipAction(gltf.animations[0]);
+                    action.play();
                     mixers.push(mixer);
                 }
-            }, undefined, function(err) { console.error("خطأ تحميل " + file); });
+                console.log("تم تحميل بنجاح: " + file);
+            }, undefined, function(err) {
+                console.error("خطأ: لم يتم العثور على ملف " + file + " في مجلد assets");
+            });
         }
 
-        // تحميل المجسمات الموجودة في صورتك
+        // تحميل المجسمات (تأكد من مطابقة الأسماء تماماً)
         safeLoad('zombie.glb', 0.04, 0, -5, false);
         safeLoad('zombie_dog.glb', 0.02, -3, -2, false);
         safeLoad('chibi_girl_character.glb', 0.04, 3, -2, false);
-        // هذا سيعمل فور رفعه لـ GitHub
         safeLoad('cyber_warrior.glb', 0.04, 0, 0, true);
 
         camera.position.set(0, 5, 12);
 
-        // تحكم الحركة
-        let moveX = 0;
-        document.getElementById('leftBtn').onpointerdown = () => moveX = -0.1;
-        document.getElementById('rightBtn').onpointerdown = () => moveX = 0.1;
-        window.onpointerup = () => moveX = 0;
+        // 5. نظام التحكم المصحح (يدعم اللمس والماوس)
+        const startMove = (dir) => moveX = dir;
+        const stopMove = () => moveX = 0;
 
-        document.getElementById('jumpBtn').onpointerdown = () => {
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const jumpBtn = document.getElementById('jumpBtn');
+
+        // أحداث اللمس (للموبايل)
+        leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMove(-0.15); });
+        leftBtn.addEventListener('touchend', stopMove);
+        
+        rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMove(0.15); });
+        rightBtn.addEventListener('touchend', stopMove);
+
+        // أحداث الماوس (للكمبيوتر)
+        leftBtn.addEventListener('mousedown', () => startMove(-0.15));
+        rightBtn.addEventListener('mousedown', () => startMove(0.15));
+        window.addEventListener('mouseup', stopMove);
+
+        // القفز
+        const jumpAction = (e) => {
+            if(e) e.preventDefault();
             if(playerModel && playerModel.position.y <= 0.05) {
-                let up = 0.2;
-                function jumpFrame() {
-                    playerModel.position.y += up;
-                    up -= 0.015;
-                    if(playerModel.position.y > 0) requestAnimationFrame(jumpFrame);
-                    else playerModel.position.y = 0;
+                let velocityY = 0.25;
+                const gravity = 0.015;
+                function jumpLoop() {
+                    playerModel.position.y += velocityY;
+                    velocityY -= gravity;
+                    if(playerModel.position.y > 0) {
+                        requestAnimationFrame(jumpLoop);
+                    } else {
+                        playerModel.position.y = 0;
+                    }
                 }
-                jumpFrame();
+                jumpLoop();
             }
         };
+        jumpBtn.addEventListener('touchstart', jumpAction);
+        jumpBtn.addEventListener('mousedown', jumpAction);
 
+        // 6. حلقة التحريك (Animation Loop)
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
+            
+            // تحديث الأنيميشن
             mixers.forEach(m => m.update(delta));
 
+            // تحريك اللاعب والكاميرا
             if(playerModel) {
                 playerModel.position.x += moveX;
                 camera.position.x = playerModel.position.x;
                 camera.lookAt(playerModel.position.x, 1, 0);
+                
+                // جعل الضوء يتبع اللاعب
+                flashLight.position.x = playerModel.position.x;
             }
 
             renderer.render(scene, camera);
         }
         animate();
 
+        // تحديث أبعاد الشاشة عند التدوير
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
