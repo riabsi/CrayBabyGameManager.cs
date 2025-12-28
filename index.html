@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cray Baby - Fast Load</title>
+    <title>Cray Baby - Real Movement</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
@@ -42,30 +42,27 @@
         pLight.position.set(0, 10, 10);
         scene.add(pLight);
 
-        // تحميل الأرضية بسرعة
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('Assets/unnamed (19).jpg', (tex) => {
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ map: tex }));
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
-        });
-
         const loader = new THREE.GLTFLoader();
         let zombie;
 
-        // تحميل الزومبي مع تفعيل الأنيميشن والدوران
+        // تحميل الزومبي مع تفعيل محرك المفاصل بدقة
         loader.load('Assets/zombie.glb', function(gltf) {
             zombie = gltf.scene;
             zombie.scale.set(0.05, 0.05, 0.05);
             zombie.position.set(0, 0, 0);
             scene.add(zombie);
 
+            // تفعيل حركات المفاصل (Animations)
             if (gltf.animations && gltf.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(zombie);
-                mixer.clipAction(gltf.animations[0]).play();
+                // سنقوم بتشغيل الحركة الأولى (غالباً تكون المشي أو الوقوف)
+                const action = mixer.clipAction(gltf.animations[0]);
+                action.play();
+                console.log("Animations found: " + gltf.animations.length);
             }
         });
 
+        // تحميل الكلب
         loader.load('Assets/zombie_dog.glb', (gltf) => {
             const dog = gltf.scene;
             dog.scale.set(0.02, 0.02, 0.02);
@@ -76,7 +73,6 @@
         camera.position.set(0, 6, 18);
 
         let moveX = 0;
-        // نظام الدوران عند المشي
         document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.15; if(zombie) zombie.rotation.y = -Math.PI / 2; };
         document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.15; if(zombie) zombie.rotation.y = Math.PI / 2; };
         window.onpointerup = () => moveX = 0;
@@ -84,6 +80,8 @@
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
+            
+            // تحديث حركة المفاصل في كل فريم
             if (mixer) mixer.update(delta);
 
             if (zombie) {
