@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cray Baby - Zombie Control</title>
+    <title>Cray Baby - Fast Load</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; }
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
@@ -29,81 +29,63 @@
 
     <script>
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // إضاءة قوية جداً لرؤية المجسمات بوضوح
+        const clock = new THREE.Clock();
+        let mixer; 
+
         scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
         const pLight = new THREE.PointLight(0xff0000, 4, 100);
         pLight.position.set(0, 10, 10);
         scene.add(pLight);
 
-        // الأرضية - قمنا بتبسيط المسار للتأكد من التحميل
+        // تحميل الأرضية بسرعة
         const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('Assets/unnamed (19).jpg', function(texture) {
-            const ground = new THREE.Mesh(
-                new THREE.PlaneGeometry(100, 100),
-                new THREE.MeshStandardMaterial({ map: texture })
-            );
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
-        }, undefined, function() {
-            // أرضية بديلة حمراء إذا فشلت الصورة
-            const ground = new THREE.Mesh(
-                new THREE.PlaneGeometry(100, 100),
-                new THREE.MeshStandardMaterial({ color: 0x330000 })
-            );
+        textureLoader.load('Assets/unnamed (19).jpg', (tex) => {
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ map: tex }));
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
         });
 
         const loader = new THREE.GLTFLoader();
-        let zombie, dog, girl;
+        let zombie;
 
-        function loadModel(file, scale, x, z, type) {
-            loader.load('Assets/' + file, function(gltf) {
-                const model = gltf.scene;
-                model.scale.set(scale, scale, scale);
-                model.position.set(x, 0, z);
-                scene.add(model);
-                if(type === 'zombie') zombie = model;
-                if(type === 'dog') dog = model;
-                if(type === 'girl') girl = model;
-            });
-        }
+        // تحميل الزومبي مع تفعيل الأنيميشن والدوران
+        loader.load('Assets/zombie.glb', function(gltf) {
+            zombie = gltf.scene;
+            zombie.scale.set(0.05, 0.05, 0.05);
+            zombie.position.set(0, 0, 0);
+            scene.add(zombie);
 
-        // تحميل المجسمات مع مراعاة أسماء الملفات من صورتك
-        loadModel('zombie.glb', 0.05, 0, 0, 'zombie'); 
-        loadModel('zombie_dog.glb', 0.02, -5, -2, 'dog');
-        // تأكد أن الاسم مطابق لـ GitHub تماماً
-        loadModel('chibi_girl_character.glb', 0.08, 5, -2, 'girl'); 
-
-        camera.position.set(0, 7, 18);
-
-        // تحكم الزومبي
-        let moveX = 0;
-        document.getElementById('leftBtn').onpointerdown = () => moveX = -0.15;
-        document.getElementById('rightBtn').onpointerdown = () => moveX = 0.15;
-        window.onpointerup = () => moveX = 0;
-
-        document.getElementById('jumpBtn').onpointerdown = () => {
-            if(zombie && zombie.position.y <= 0.1) {
-                let v = 0.3;
-                function jump() {
-                    zombie.position.y += v;
-                    v -= 0.02;
-                    if(zombie.position.y > 0) requestAnimationFrame(jump);
-                    else zombie.position.y = 0;
-                }
-                jump();
+            if (gltf.animations && gltf.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(zombie);
+                mixer.clipAction(gltf.animations[0]).play();
             }
-        };
+        });
+
+        loader.load('Assets/zombie_dog.glb', (gltf) => {
+            const dog = gltf.scene;
+            dog.scale.set(0.02, 0.02, 0.02);
+            dog.position.set(-5, 0, -2);
+            scene.add(dog);
+        });
+
+        camera.position.set(0, 6, 18);
+
+        let moveX = 0;
+        // نظام الدوران عند المشي
+        document.getElementById('leftBtn').onpointerdown = () => { moveX = -0.15; if(zombie) zombie.rotation.y = -Math.PI / 2; };
+        document.getElementById('rightBtn').onpointerdown = () => { moveX = 0.15; if(zombie) zombie.rotation.y = Math.PI / 2; };
+        window.onpointerup = () => moveX = 0;
 
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
             if (zombie) {
                 zombie.position.x += moveX;
                 camera.position.x = zombie.position.x;
