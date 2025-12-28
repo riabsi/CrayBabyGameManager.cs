@@ -3,130 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cray Baby 3D - High Volume</title>
+    <title>Cray Baby - The Horror Adventure</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-        #game-ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #bf94ff; z-index: 5; }
-        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; gap: 15px; z-index: 5; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #5a2d82; color: white; border: 1px solid #bf94ff; border-radius: 12px; }
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
+        .btn { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="game-ui">
-        <h2>عالم كراي بيبي 3D</h2>
-        <p>ارفع صوت الهاتف لتسمع الغابة!</p>
+    <div id="controls">
+        <div class="btn" id="leftBtn">يسار</div>
+        <div class="btn" id="jumpBtn">قفز</div>
+        <div class="btn" id="rightBtn">يمين</div>
     </div>
 
-    <div class="controls">
-        <button onclick="movePlayer(-0.8)">⬅️ يسار</button>
-        <button onclick="playerJump()">⬆️ قفز</button>
-        <button onclick="movePlayer(0.8)">يمين ➡️</button>
-    </div>
-
-    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
+        // 1. إعداد المشهد والإضاءة المرعبة
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050510);
+        scene.background = new THREE.Color(0x050505); // غابة مظلمة
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // الإضاءة
-        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-        
-        const loader = new THREE.TextureLoader();
-        const heroTex = loader.load('Assets/صورة غير مسماة (21).jpg');
-        const monsterTex = loader.load('Assets/unnamed (18).jpg');
-        const groundTex = loader.load('Assets/unnamed (19).jpg');
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
+        scene.add(light);
+        const spotLight = new THREE.SpotLight(0xff0000, 2); // ضوء أحمر خفيف للرعب
+        spotLight.position.set(0, 10, 0);
+        scene.add(spotLight);
 
-        const player = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), new THREE.MeshStandardMaterial({ map: heroTex }));
-        player.position.y = 0.9;
-        scene.add(player);
-
-        const monster = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 2.5), new THREE.MeshStandardMaterial({ map: monsterTex }));
-        monster.position.set(8, 1.25, 0);
-        scene.add(monster);
-
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 20), new THREE.MeshStandardMaterial({ map: groundTex }));
+        // 2. إنشاء الأرضية (باستخدام صورتك unnamed 19)
+        const textureLoader = new THREE.TextureLoader();
+        const groundTex = textureLoader.load('Assets/unnamed (19).jpg');
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(100, 100),
+            new THREE.MeshStandardMaterial({ map: groundTex })
+        );
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
-        camera.position.set(0, 5, 12);
-        camera.lookAt(player.position);
+        // 3. تحميل الأجسام الحقيقية التي حملتها يا رياض
+        const loader = new THREE.GLTFLoader();
+        let player, zombie;
 
-        // --- نظام الصوت المرتفع ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const mainGain = audioCtx.createGain();
-        mainGain.gain.setValueAtTime(1.5, audioCtx.currentTime); // رفع القوة لـ 150%
-        mainGain.connect(audioCtx.destination);
-
-        function playPowerfulSound(freq, type, duration, volume) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            g.gain.setValueAtTime(volume, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-            osc.connect(g);
-            g.connect(mainGain);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-        }
-
-        // صوت الهواء المستمر (مخيف)
-        function ambientWind() {
-            const bufferSize = audioCtx.sampleRate * 3;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer; noise.loop = true;
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'lowpass'; filter.frequency.value = 300;
-            const g = audioCtx.createGain();
-            g.gain.value = 0.15; // قوة هبوب الرياح
-            noise.connect(filter); filter.connect(g); g.connect(mainGain);
-            noise.start();
-        }
-
-        let vY = 0, jumping = false;
-
-        function animate() {
-            requestAnimationFrame(animate);
-            player.rotation.y += 0.01;
-            if(monster.position.x > player.position.x + 2.5) monster.position.x -= 0.03;
-            player.position.y += vY;
-            if (player.position.y > 0.9) vY -= 0.012; 
-            else { player.position.y = 0.9; vY = 0; jumping = false; }
-            camera.position.x = player.position.x;
-            renderer.render(scene, camera);
-        }
-
-        function movePlayer(val) { player.position.x += val; }
-        
-        function playerJump() { 
-            if(!jumping) { 
-                vY = 0.22; jumping = true; 
-                playPowerfulSound(300, 'triangle', 0.5, 0.8); // صوت قفزة قوي
-            } 
-        }
-
-        // بدء الأصوات عند أول ضغطة
-        window.addEventListener('mousedown', () => {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-                ambientWind();
-                setInterval(() => {
-                    playPowerfulSound(100 + Math.random() * 50, 'sawtooth', 2, 0.05); // صدى مخيف
-                }, 8000);
-            }
+        // تحميل البطل (المحارب السيبراني)
+        loader.load('Assets/cyber_warrior.glb', function(gltf) {
+            player = gltf.scene;
+            player.scale.set(1, 1, 1);
+            player.position.set(0, 0, 0);
+            scene.add(player);
         });
 
+        // تحميل العدو (الزومبي)
+        loader.load('Assets/zombie.glb', function(gltf) {
+            zombie = gltf.scene;
+            zombie.scale.set(1.2, 1.2, 1.2);
+            zombie.position.set(0, 0, -15); // يبدأ بعيداً
+            scene.add(zombie);
+        });
+
+        camera.position.set(0, 5, 10);
+        camera.lookAt(0, 0, 0);
+
+        // 4. نظام الحركة والتحكم
+        let moveLeft = false, moveRight = false, isJumping = false;
+        let jumpVelocity = 0;
+
+        document.getElementById('leftBtn').ontouchstart = () => moveLeft = true;
+        document.getElementById('leftBtn').ontouchend = () => moveLeft = false;
+        document.getElementById('rightBtn').ontouchstart = () => moveRight = true;
+        document.getElementById('rightBtn').ontouchend = () => moveRight = false;
+        document.getElementById('jumpBtn').onclick = () => { if(!isJumping) { isJumping = true; jumpVelocity = 0.2; } };
+
+        // 5. محرك اللعبة (Animation Loop)
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (player) {
+                if (moveLeft) player.position.x -= 0.1;
+                if (moveRight) player.position.x += 0.1;
+
+                // نظام الجاذبية والقفز
+                if (isJumping) {
+                    player.position.y += jumpVelocity;
+                    jumpVelocity -= 0.01;
+                    if (player.position.y <= 0) {
+                        player.position.y = 0;
+                        isJumping = false;
+                    }
+                }
+                camera.position.x = player.position.x; // الكاميرا تتبع البطل
+            }
+
+            // الزومبي يطارد البطل
+            if (zombie && player) {
+                if (zombie.position.z < player.position.z) zombie.position.z += 0.03;
+                if (zombie.position.x < player.position.x) zombie.position.x += 0.02;
+                if (zombie.position.x > player.position.x) zombie.position.x -= 0.02;
+            }
+
+            renderer.render(scene, camera);
+        }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
